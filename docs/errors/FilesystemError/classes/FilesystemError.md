@@ -11,7 +11,7 @@ Custom error for error operations.
 ### Constructor
 
 ```ts
-new FilesystemError(message, options): FilesystemError;
+new FilesystemError(message, options?): FilesystemError;
 ```
 
 #### Parameters
@@ -20,7 +20,7 @@ new FilesystemError(message, options): FilesystemError;
 
 `string`
 
-##### options
+##### options?
 
 `ErrorOptions` = `{}`
 
