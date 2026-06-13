@@ -4,6 +4,13 @@ All notable changes to the "Stone.js Filesystem" extension will be documented in
 
 ## Unreleased
 
+## [0.1.2](https://github.com/stone-foundation/stone-js-filesystem/compare/v0.1.1...v0.1.2) (2026-06-13)
+
+
+### Miscellaneous Chores
+
+* update Stone core dep ([#23](https://github.com/stone-foundation/stone-js-filesystem/issues/23)) ([f978b35](https://github.com/stone-foundation/stone-js-filesystem/commit/f978b358213cb2f3805652f13ff5b5447010b628))
+
 ## [0.1.1](https://github.com/stone-foundation/stone-js-filesystem/compare/v0.1.0...v0.1.1) (2025-06-12)
 
 
