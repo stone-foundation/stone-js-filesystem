@@ -3,7 +3,7 @@
 [![npm](https://img.shields.io/npm/l/@stone-js/filesystem)](https://opensource.org/licenses/MIT)
 [![npm](https://img.shields.io/npm/v/@stone-js/filesystem)](https://www.npmjs.com/package/@stone-js/filesystem)
 [![npm](https://img.shields.io/npm/dm/@stone-js/filesystem)](https://www.npmjs.com/package/@stone-js/filesystem)
-![Maintenance](https://img.shields.io/maintenance/yes/2025)
+![Maintenance](https://img.shields.io/maintenance/yes/2026)
 [![Build Status](https://github.com/stone-foundation/stone-js-filesystem/actions/workflows/main.yml/badge.svg)](https://github.com/stone-foundation/stone-js-filesystem/actions/workflows/main.yml)
 [![Publish Package to npmjs](https://github.com/stone-foundation/stone-js-filesystem/actions/workflows/release.yml/badge.svg)](https://github.com/stone-foundation/stone-js-filesystem/actions/workflows/release.yml)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=stone-foundation_stone-js-filesystem&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=stone-foundation_stone-js-filesystem)
@@ -39,7 +39,7 @@ This package is part of the **Stone.js ecosystem**, designed to support the **Co
 npm install @stone-js/filesystem
 ```
 
-> \[!IMPORTANT]
+> [!IMPORTANT]
 > This package is **pure ESM**. Ensure your `package.json` includes `"type": "module"` or configure your bundler appropriately.
 
 ## Usage
@@ -62,7 +62,7 @@ For more examples and a complete guide to path resolution, file mutation, and up
 
 This package is part of the Stone.js ecosystem, a modern JavaScript framework built around the Continuum Architecture.
 
-Explore the full documentation: https://stonejs.dev
+Explore the full documentation: [https://stonejs.dev](https://stonejs.dev)
 
 ## API documentation
 

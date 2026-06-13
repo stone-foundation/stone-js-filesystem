@@ -15,7 +15,7 @@ Mr. Stone <evensstone@gmail.com>
 ### Constructor
 
 ```ts
-protected new File(path, checkPath): File;
+protected new File(path, checkPath?): File;
 ```
 
 Create a File.
@@ -28,7 +28,7 @@ Create a File.
 
 The file path.
 
-##### checkPath
+##### checkPath?
 
 `boolean` = `true`
 
@@ -83,14 +83,14 @@ True if the file exists, otherwise false.
 ### getAbsolutePath()
 
 ```ts
-getAbsolutePath(root): string;
+getAbsolutePath(root?): string;
 ```
 
 Get the absolute file path.
 
 #### Parameters
 
-##### root
+##### root?
 
 `string` = `''`
 
@@ -107,14 +107,14 @@ The absolute file path.
 ### getATime()
 
 ```ts
-getATime(): undefined | number | bigint;
+getATime(): number | bigint | undefined;
 ```
 
 Get the last access time of the file.
 
 #### Returns
 
-`undefined` \| `number` \| `bigint`
+`number` \| `bigint` \| `undefined`
 
 The last access time in milliseconds.
 
@@ -123,14 +123,14 @@ The last access time in milliseconds.
 ### getBasename()
 
 ```ts
-getBasename(exclude): string;
+getBasename(exclude?): string;
 ```
 
 Get the basename of the file.
 
 #### Parameters
 
-##### exclude
+##### exclude?
 
 `string` = `''`
 
@@ -147,14 +147,14 @@ The basename of the file.
 ### getContent()
 
 ```ts
-getContent(encoding): string;
+getContent(encoding?): string;
 ```
 
 Get file content.
 
 #### Parameters
 
-##### encoding
+##### encoding?
 
 `BufferEncoding` = `'utf-8'`
 
@@ -169,14 +169,14 @@ The content of the file as a string.
 ### getCTime()
 
 ```ts
-getCTime(): undefined | number | bigint;
+getCTime(): number | bigint | undefined;
 ```
 
 Get the created time of the file.
 
 #### Returns
 
-`undefined` \| `number` \| `bigint`
+`number` \| `bigint` \| `undefined`
 
 The created time in milliseconds.
 
@@ -201,14 +201,14 @@ The directory name.
 ### getEncodedAbsolutePath()
 
 ```ts
-getEncodedAbsolutePath(root): string;
+getEncodedAbsolutePath(root?): string;
 ```
 
 Get the encoded absolute file path.
 
 #### Parameters
 
-##### root
+##### root?
 
 `string` = `''`
 
@@ -273,14 +273,14 @@ The filename of the file.
 ### getHashedContent()
 
 ```ts
-getHashedContent(algo): string;
+getHashedContent(algo?): string;
 ```
 
 Get the hashed content of the file.
 
 #### Parameters
 
-##### algo
+##### algo?
 
 `string` = `'sha256'`
 
@@ -300,25 +300,23 @@ Get the MIME type of the file.
 
 #### Param
 
+**fallback**
+
 A fallback MIME type if detection fails.
 
 #### Call Signature
 
 ```ts
-getMimeType(): undefined | string;
+getMimeType(): string | undefined;
 ```
 
 Get the MIME type of the file.
 
 ##### Returns
 
-`undefined` \| `string`
+`string` \| `undefined`
 
 The MIME type of the file.
-
-##### Param
-
-A fallback MIME type if detection fails.
 
 #### Call Signature
 
@@ -342,23 +340,19 @@ A fallback MIME type if detection fails.
 
 The MIME type of the file.
 
-##### Param
-
-A fallback MIME type if detection fails.
-
 ***
 
 ### getMTime()
 
 ```ts
-getMTime(): undefined | number | bigint;
+getMTime(): number | bigint | undefined;
 ```
 
 Get the last modified time of the file.
 
 #### Returns
 
-`undefined` \| `number` \| `bigint`
+`number` \| `bigint` \| `undefined`
 
 The last modified time in milliseconds.
 
@@ -399,14 +393,14 @@ The file path.
 ### getSize()
 
 ```ts
-getSize(formatted): undefined | string | number | bigint;
+getSize(formatted?): string | number | bigint | undefined;
 ```
 
 Get file size.
 
 #### Parameters
 
-##### formatted
+##### formatted?
 
 `boolean` = `false`
 
@@ -414,7 +408,7 @@ Whether to return the file size as a formatted string.
 
 #### Returns
 
-`undefined` \| `string` \| `number` \| `bigint`
+`string` \| `number` \| `bigint` \| `undefined`
 
 The file size as a string or number.
 
@@ -439,14 +433,14 @@ True if the file path is absolute, otherwise false.
 ### isCompressed()
 
 ```ts
-isCompressed(extensions): boolean;
+isCompressed(extensions?): boolean;
 ```
 
 Check if the file is compressed.
 
 #### Parameters
 
-##### extensions
+##### extensions?
 
 `string`[] = `...`
 
@@ -613,14 +607,14 @@ FileError if the file could not be moved.
 ### remove()
 
 ```ts
-remove(force): this;
+remove(force?): this;
 ```
 
 Remove file.
 
 #### Parameters
 
-##### force
+##### force?
 
 `boolean` = `false`
 
@@ -661,7 +655,7 @@ The current File instance.
 ### create()
 
 ```ts
-static create(path, checkPath): File;
+static create(path, checkPath?): File;
 ```
 
 Create a File.
@@ -674,7 +668,7 @@ Create a File.
 
 The file path.
 
-##### checkPath
+##### checkPath?
 
 `boolean` = `true`
 
