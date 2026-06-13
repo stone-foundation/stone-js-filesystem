@@ -16,7 +16,6 @@ import {
   accessSync,
   renameSync,
   readFileSync,
-  realpathSync,
   writeFileSync
 } from 'node:fs'
 import mime from 'mime'
@@ -302,7 +301,9 @@ export class File {
    * @returns True if the file path starts with the provided prefix, otherwise false.
    */
   isPathPrefix (prefix: string): boolean {
-    return this.path.startsWith(realpathSync(prefix))
+    const fullPath = resolve(this.path)
+    const prefixPath = resolve(prefix)
+    return fullPath.toLowerCase().startsWith(prefixPath.toLowerCase())
   }
 
   /**
