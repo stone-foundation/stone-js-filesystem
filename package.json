@@ -48,7 +48,7 @@
     "prepare": "husky"
   },
   "peerDependencies": {
-    "@stone-js/core": "^0.2.1"
+    "@stone-js/core": "workspace:*"
   },
   "dependencies": {
     "filesize": "^10.1.6",
