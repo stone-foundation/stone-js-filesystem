@@ -9,6 +9,8 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['src/**/*.ts'],
+      // Pure type/interface contract (no executable code) — nothing to cover at runtime.
+      exclude: ['src/storage/FileSystem.ts'],
       reporter: ['text', 'html', 'lcov'],
       reportsDirectory: './coverage',
       thresholds: {

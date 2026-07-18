@@ -87,14 +87,18 @@ export class UploadedFile extends File {
    *
    * @param directory - The target directory.
    * @param name - The new name for the file.
-   * @returns The current UploadedFile instance.
-   * @throws FileError if the file is not valid.
+   * @returns A new UploadedFile at the destination (client name/MIME preserved).
+   * @throws FilesystemError if the file is not valid.
    */
-  move (directory: string, name?: string): this {
-    if (this.isValid()) {
-      return super.move(directory, name) as this
+  move (directory: string, name?: string): UploadedFile {
+    if (!this.isValid()) {
+      throw new FilesystemError('No file was uploaded.')
     }
 
-    throw new FilesystemError('No file was uploaded.')
+    // `super.move` performs the physical move and returns a plain File at the destination. Wrap it
+    // back into an UploadedFile (preserving the client name/MIME) — the old `as this` cast returned
+    // a File masquerading as UploadedFile, so getClient*() crashed at runtime.
+    const moved = super.move(directory, name)
+    return UploadedFile.createFile(moved.getPath(), this.originalName, this.mimeType, false)
   }
 }

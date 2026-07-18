@@ -1,4 +1,5 @@
 import {
+  sep,
   join,
   resolve,
   dirname,
@@ -9,12 +10,14 @@ import {
 import {
   rmSync,
   statSync,
+  lstatSync,
   chmodSync,
   constants,
   mkdirSync,
   existsSync,
   accessSync,
   renameSync,
+  copyFileSync,
   readFileSync,
   writeFileSync
 } from 'node:fs'
@@ -62,24 +65,37 @@ export class File {
    * @returns The content of the file as a string.
    */
   getContent (encoding: BufferEncoding = 'utf-8'): string {
-    if (!this.isReadable()) {
-      throw new FilesystemError(`Could not get the content of the file (${this.path}).`)
-    }
-    return readFileSync(this.path).toString(encoding)
+    return this.getBuffer().toString(encoding)
   }
 
   /**
-   * Write content to file.
+   * Get the raw file content as a Buffer (binary-safe).
+   *
+   * @returns The content of the file as a Buffer.
+   * @throws FilesystemError if the file cannot be read.
+   */
+  getBuffer (): Buffer {
+    try {
+      return readFileSync(this.path)
+    } catch (error: any) {
+      throw new FilesystemError(`Could not get the content of the file (${this.path}).`, { cause: error })
+    }
+  }
+
+  /**
+   * Write content to file (creating it if it does not exist).
    *
    * @param content - The content to write to the file.
    * @returns The current File instance.
+   * @throws FilesystemError if the content cannot be written.
    */
-  write (content: string): this {
-    if (!this.isWritable()) {
-      throw new FilesystemError(`Could not write content to this file (${this.path}).`)
+  write (content: string | Buffer): this {
+    try {
+      writeFileSync(this.path, content)
+    } catch (error: any) {
+      throw new FilesystemError(`Could not write content to this file (${this.path}).`, { cause: error })
     }
-
-    writeFileSync(this.path, content, 'utf-8')
+    this.invalidateStats()
     return this
   }
 
@@ -107,10 +123,25 @@ export class File {
     try {
       renameSync(this.getPath(), target.getPath())
     } catch (error: any) {
-      throw new FilesystemError(`Could not move the file "${this.getPath()}" to "${target.getPath()}" (${String(error.message)}).`)
+      // `rename` fails with EXDEV across devices/mounts (e.g. tmpdir → a different volume, common
+      // in containers): fall back to copy + delete.
+      if (error?.code === 'EXDEV') {
+        try {
+          copyFileSync(this.getPath(), target.getPath())
+          rmSync(this.getPath(), { force: true })
+        } catch (copyError: any) {
+          throw new FilesystemError(`Could not move the file "${this.getPath()}" to "${target.getPath()}" (${String(copyError.message)}).`, { cause: copyError })
+        }
+      } else {
+        throw new FilesystemError(`Could not move the file "${this.getPath()}" to "${target.getPath()}" (${String(error.message)}).`, { cause: error })
+      }
     }
 
-    chmodSync(target.getPath(), 0o666)
+    // Honour the process umask instead of forcing world-writable 0o666 (which would make an
+    // uploaded file readable/writable by every user on the host).
+    try { chmodSync(target.getPath(), 0o666 & ~process.umask()) } catch { /* best-effort */ }
+
+    this.invalidateStats()
     return target
   }
 
@@ -124,8 +155,9 @@ export class File {
     try {
       rmSync(this.path, { force })
     } catch (error: any) {
-      throw new FilesystemError(`Could not remove this file (${this.path}) (${String(error.message)}).`)
+      throw new FilesystemError(`Could not remove this file (${this.path}) (${String(error.message)}).`, { cause: error })
     }
+    this.invalidateStats()
     return this
   }
 
@@ -136,7 +168,8 @@ export class File {
    * @returns The hashed content of the file as a hex string.
    */
   getHashedContent (algo: string = 'sha256'): string {
-    return createHash(algo).update(this.getContent(), 'utf-8').digest('hex')
+    // Hash the raw bytes (binary-safe); hashing a utf-8 decode would corrupt non-text files.
+    return createHash(algo).update(this.getBuffer()).digest('hex')
   }
 
   /**
@@ -303,7 +336,9 @@ export class File {
   isPathPrefix (prefix: string): boolean {
     const fullPath = resolve(this.path)
     const prefixPath = resolve(prefix)
-    return fullPath.toLowerCase().startsWith(prefixPath.toLowerCase())
+    // Require a real path boundary so `/tmp/foo-evil` does NOT match the prefix `/tmp/foo`.
+    // Case-sensitive (matches POSIX filesystems and avoids a false sense of confinement).
+    return fullPath === prefixPath || fullPath.startsWith(prefixPath.endsWith(sep) ? prefixPath : prefixPath + sep)
   }
 
   /**
@@ -339,7 +374,12 @@ export class File {
    * @returns True if the file is a symbolic link, otherwise false.
    */
   isLink (): boolean {
-    return this.getStats()?.isSymbolicLink?.() ?? false
+    // `lstat` does NOT follow symlinks (unlike `stat`), so a symlink is actually detected.
+    try {
+      return lstatSync(this.path).isSymbolicLink()
+    } catch {
+      return false
+    }
   }
 
   /**
@@ -398,11 +438,25 @@ export class File {
    *
    * @returns The file statistics object.
    */
-  private getStats (): ReturnType<typeof statSync> {
+  private getStats (): ReturnType<typeof statSync> | undefined {
     if (this.stats === undefined) {
-      this.stats = statSync(this.path)
+      // Never throw a raw ENOENT: a missing file makes the predicates (isFile/isDir/...) return
+      // false rather than crash.
+      try {
+        this.stats = statSync(this.path)
+      } catch {
+        return undefined
+      }
     }
     return this.stats
+  }
+
+  /**
+   * Invalidate the cached stats after a mutation (write/move/remove) so size/mtime/predicates
+   * reflect the new state on the next read.
+   */
+  private invalidateStats (): void {
+    this.stats = undefined
   }
 
   /**
@@ -439,6 +493,9 @@ export class File {
       }
     }
 
-    return new File(join(directory, name ?? this.getFilename()), false)
+    // Sanitize the target name with `basename` so a caller-supplied name like `../../evil`
+    // cannot escape the target directory (path traversal).
+    const safeName = name !== null && name !== undefined ? basename(name) : this.getFilename()
+    return new File(join(directory, safeName), false)
   }
 }

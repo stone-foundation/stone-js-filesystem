@@ -182,6 +182,30 @@ The basename of the file.
 
 ***
 
+### getBuffer()
+
+```ts
+getBuffer(): Buffer;
+```
+
+Get the raw file content as a Buffer (binary-safe).
+
+#### Returns
+
+`Buffer`
+
+The content of the file as a Buffer.
+
+#### Throws
+
+FilesystemError if the file cannot be read.
+
+#### Inherited from
+
+[`File`](../../File/classes/File.md).[`getBuffer`](../../File/classes/File.md#getbuffer)
+
+***
+
 ### getClientMimeType()
 
 ```ts
@@ -783,7 +807,7 @@ True if the file is writable, otherwise false.
 ### move()
 
 ```ts
-move(directory, name?): this;
+move(directory, name?): UploadedFile;
 ```
 
 Move the uploaded file to a new directory.
@@ -804,13 +828,13 @@ The new name for the file.
 
 #### Returns
 
-`this`
+`UploadedFile`
 
-The current UploadedFile instance.
+A new UploadedFile at the destination (client name/MIME preserved).
 
 #### Throws
 
-FileError if the file is not valid.
+FilesystemError if the file is not valid.
 
 #### Overrides
 
@@ -852,13 +876,13 @@ The current File instance.
 write(content): this;
 ```
 
-Write content to file.
+Write content to file (creating it if it does not exist).
 
 #### Parameters
 
 ##### content
 
-`string`
+`string` \| `Buffer`\<`ArrayBufferLike`\>
 
 The content to write to the file.
 
@@ -867,6 +891,10 @@ The content to write to the file.
 `this`
 
 The current File instance.
+
+#### Throws
+
+FilesystemError if the content cannot be written.
 
 #### Inherited from
 

@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto'
 import { File } from '../../src/file/File'
 import { FilesystemError } from '../../src/errors/FilesystemError'
 import { resolve, join, basename, dirname, isAbsolute, extname } from 'node:path'
-import { mkdirSync, statSync, writeFileSync, renameSync, rmSync, accessSync, existsSync, readFileSync, chmodSync } from 'node:fs'
+import { mkdirSync, statSync, lstatSync, writeFileSync, renameSync, rmSync, accessSync, existsSync, readFileSync, chmodSync, copyFileSync } from 'node:fs'
 
 const mockHash = {
   update: vi.fn().mockReturnThis(),
@@ -16,11 +16,13 @@ vi.mock('node:fs', () => ({
   statSync: vi.fn(() => ({
     size: 12345
   })),
+  lstatSync: vi.fn(() => ({ isSymbolicLink: () => false })),
   chmodSync: vi.fn(),
   existsSync: vi.fn(),
   accessSync: vi.fn(() => {}),
   writeFileSync: vi.fn(),
   readFileSync: vi.fn(() => 'File content'),
+  copyFileSync: vi.fn(),
   mkdirSync: vi.fn(),
   renameSync: vi.fn(),
   rmSync: vi.fn(),
@@ -52,14 +54,15 @@ describe('File', () => {
       const hashedContent = file.getHashedContent('sha256')
 
       expect(createHash).toHaveBeenCalledWith('sha256')
-      expect(mockHash.update).toHaveBeenCalledWith('File content', 'utf-8')
+      // Hashes the raw bytes (binary-safe), no utf-8 decode.
+      expect(mockHash.update).toHaveBeenCalledWith('File content')
       expect(mockHash.digest).toHaveBeenCalledWith('hex')
       expect(hashedContent).toBe('hashed-content')
     })
 
     it('should throw error when file cannot be read', () => {
-      const file = File.create('/path/to/file.txt', false)
-      file.isReadable = () => false
+      const file = File.create('/path/to/file.txt', false);
+      (readFileSync as Mock).mockImplementationOnce(() => { throw new Error('EACCES') })
       expect(() => file.getContent()).toThrow(FilesystemError)
     })
 
@@ -112,16 +115,16 @@ describe('File', () => {
   })
 
   describe('write', () => {
-    it('should write content to the file', () => {
+    it('should write content to the file (creating it if needed)', () => {
       (writeFileSync as Mock).mockReturnValue(true)
       const file = File.create('/path/to/file.txt', false)
       file.write('lorem ipsum')
-      expect(writeFileSync).toHaveBeenCalledWith('/path/to/file.txt', 'lorem ipsum', 'utf-8')
+      expect(writeFileSync).toHaveBeenCalledWith('/path/to/file.txt', 'lorem ipsum')
     })
 
     it('should throw error when file cannot be wrote', () => {
-      const file = File.create('/path/to/file.txt', false)
-      file.isWritable = () => false
+      const file = File.create('/path/to/file.txt', false);
+      (writeFileSync as Mock).mockImplementationOnce(() => { throw new Error('EACCES') })
       expect(() => file.write('')).toThrow(FilesystemError)
     })
   })
@@ -132,7 +135,7 @@ describe('File', () => {
       (readFileSync as Mock).mockReturnValue('lorem ipsum')
       const file = File.create('/path/to/file.txt', false)
       file.edit((content) => content.toUpperCase())
-      expect(writeFileSync).toHaveBeenCalledWith('/path/to/file.txt', 'LOREM IPSUM', 'utf-8')
+      expect(writeFileSync).toHaveBeenCalledWith('/path/to/file.txt', 'LOREM IPSUM')
     })
   })
 
@@ -353,5 +356,88 @@ describe('File', () => {
     const file = File.create('/path/to/file.txt', false)
     expect(file.isFile()).toBe(false)
     expect(file.isLink()).toBe(false)
+  })
+
+  describe('bug fixes', () => {
+    it('move falls back to copy+delete on EXDEV', () => {
+      (accessSync as Mock).mockImplementation(() => {});
+      (rmSync as Mock).mockImplementation(() => {});
+      (copyFileSync as Mock).mockImplementation(() => {});
+      (existsSync as Mock).mockReturnValue(true);
+      (renameSync as Mock).mockImplementationOnce(() => { const e: any = new Error('cross-device'); e.code = 'EXDEV'; throw e });
+      (join as Mock).mockReturnValue('/dest/file.txt')
+
+      const file = File.create('/src/file.txt', false)
+      file.move('/dest')
+
+      expect(copyFileSync).toHaveBeenCalled()
+      expect(rmSync).toHaveBeenCalledWith('/src/file.txt', { force: true })
+    })
+
+    it('move throws a FilesystemError on a non-EXDEV rename failure', () => {
+      (existsSync as Mock).mockReturnValue(true);
+      (renameSync as Mock).mockImplementationOnce(() => { throw new Error('EPERM') });
+      (join as Mock).mockReturnValue('/dest/file.txt')
+
+      const file = File.create('/src/file.txt', false)
+      expect(() => file.move('/dest')).toThrow(FilesystemError)
+    })
+
+    it('move throws when the EXDEV copy fallback itself fails', () => {
+      (accessSync as Mock).mockImplementation(() => {});
+      (existsSync as Mock).mockReturnValue(true);
+      (renameSync as Mock).mockImplementationOnce(() => { const e: any = new Error('x'); e.code = 'EXDEV'; throw e });
+      (copyFileSync as Mock).mockImplementationOnce(() => { throw new Error('disk full') });
+      (join as Mock).mockReturnValue('/dest/file.txt')
+
+      expect(() => File.create('/src/file.txt', false).move('/dest')).toThrow(FilesystemError)
+    })
+
+    it('isLink uses lstat so a symlink is detected', () => {
+      (lstatSync as Mock).mockReturnValueOnce({ isSymbolicLink: () => true })
+      expect(File.create('/link', false).isLink()).toBe(true)
+    })
+
+    it('isLink returns false when lstat throws (missing path)', () => {
+      (lstatSync as Mock).mockImplementationOnce(() => { throw new Error('ENOENT') })
+      expect(File.create('/missing', false).isLink()).toBe(false)
+    })
+
+    it('getStats never throws for a missing file (predicates return false)', () => {
+      (statSync as Mock).mockImplementationOnce(() => { throw new Error('ENOENT') })
+      const file = File.create('/missing', false)
+      expect(file.isFile()).toBe(false)
+      expect(file.getSize()).toBeUndefined()
+    })
+
+    it('isPathPrefix requires a real boundary', () => {
+      (resolve as Mock).mockImplementation((p: string) => p)
+      expect(File.create('/tmp/foo/bar', false).isPathPrefix('/tmp/foo')).toBe(true)
+      expect(File.create('/tmp/foo/bar', false).isPathPrefix('/tmp/foo/')).toBe(true)
+      expect(File.create('/tmp/foo-evil', false).isPathPrefix('/tmp/foo')).toBe(false)
+    })
+
+    it('move still succeeds when chmod fails (best-effort)', () => {
+      (accessSync as Mock).mockImplementation(() => {});
+      (existsSync as Mock).mockReturnValue(true);
+      (renameSync as Mock).mockReturnValue(true);
+      (chmodSync as Mock).mockImplementationOnce(() => { throw new Error('EPERM') });
+      (join as Mock).mockReturnValue('/dest/file.txt')
+
+      expect(() => File.create('/src/file.txt', false).move('/dest')).not.toThrow()
+    })
+
+    it('getTargetFile sanitizes the target name (no traversal)', () => {
+      (accessSync as Mock).mockImplementation(() => {});
+      (existsSync as Mock).mockReturnValue(true);
+      (renameSync as Mock).mockReturnValue(true);
+      (basename as Mock).mockImplementation((p: string) => p.split('/').pop());
+      (join as Mock).mockImplementation((...args: string[]) => args.join('/'))
+
+      const file = File.create('/src/file.txt', false)
+      const moved = file.move('/dest', '../../evil.txt')
+      // basename strips the traversal → stays inside /dest.
+      expect(moved.getPath()).toBe('/dest/evil.txt')
+    })
   })
 })
